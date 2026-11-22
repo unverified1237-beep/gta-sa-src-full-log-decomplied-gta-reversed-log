@@ -11,15 +11,19 @@ Ishga tushirish:  python decompilati_monitor.py
 
 import html
 import json
+import os
 import re
+import threading
 import time
+from http.server import BaseHTTPRequestHandler, HTTPServer
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import requests
 
 # ============ SOZLAMALAR ============
-WEBHOOK_URL = "https://discord.com/api/webhooks/1511316715064135700/q2lPuGyFBPHFaHo4KemmLrek-KAEjxgzRaXD-hsVX3MSYLxFiqA8m9zX0_ToG41URRPl"
+# Render'da Environment bo'limiga WEBHOOK_URL nomi bilan qo'ying, yoki shu yerga yozing
+WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "PASTE_YOUR_DISCORD_WEBHOOK_URL_HERE")
 
 PROJECT_URL = "https://decompilati.onl/projects/grand-theft-auto-san-andreas-compact-exe"
 FEED_URL = PROJECT_URL + "/feed.xml"
@@ -126,7 +130,29 @@ def check_private(state):
     state["was_private"] = is_private
 
 
+class PingHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"ok")
+
+    def do_HEAD(self):
+        self.send_response(200)
+        self.end_headers()
+
+    def log_message(self, *args):
+        pass
+
+
+def start_web_server():
+    """Render Web Service port ochiq bo'lishini talab qiladi."""
+    port = int(os.environ.get("PORT", "10000"))
+    server = HTTPServer(("0.0.0.0", port), PingHandler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+
+
 def main():
+    start_web_server()
     if "PASTE_YOUR" in WEBHOOK_URL:
         raise SystemExit("WEBHOOK_URL ni to'ldiring!")
     state = load_state()
